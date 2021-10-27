@@ -60,10 +60,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Offers { fiat_currency } => to_binary(&load_offers(deps.storage, fiat_currency)?),
         QueryMsg::Offer { id } => to_binary(&load_offer_by_id(deps.storage, id)?),
-        QueryMsg::Trades { maker } => {
-            to_binary(&query_all_trades(deps.storage, Addr::unchecked(maker))?)
-        }
-        QueryMsg::TradeInfo { maker, trade } => to_binary(&load_trade_info(deps, maker, trade)?),
+        QueryMsg::Trades { maker } => to_binary(&load_trades(
+            deps,
+            deps.api.addr_validate(maker.as_str()).unwrap(),
+        )?),
     }
 }
 
@@ -328,47 +328,17 @@ pub fn load_offer_by_id(storage: &dyn Storage, id: u64) -> StdResult<Offer> {
     Ok(offer)
 }
 
-pub fn load_trade_info(deps: Deps, maker: String, trade: String) -> StdResult<TradeInfo> {
-    let maker = deps.api.addr_validate(&maker).unwrap();
-    let trade = deps.api.addr_validate(&trade).unwrap();
-
-    //TODO: add pagination
-    //Load all trades by maker
-    let trades_by_maker = query_all_trades(deps.storage, maker.clone());
-    let trade = match trades_by_maker {
-        Ok(trades) => {
-            if trades.contains(&trade) {
-                Some(trade.clone())
-            } else {
-                None
-            }
-        }
-        Err(_) => None,
-    };
-
-    //Load Trade State
-    if trade.is_none() {
-        return Err(StdError::generic_err("Trade not found."));
-    }
-    let query_result: StdResult<Binary> =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: trade.unwrap().to_string(),
-            msg: to_binary(&TradeQueryMsg::State {}).unwrap(),
-        }));
-    if query_result.is_err() {
-        return Err(StdError::generic_err("Trade not found."));
-    }
-    let trade: TradeState = from_binary(&query_result.unwrap()).unwrap();
-
-    //Load Offer
-    let offer = load_offer_by_id(deps.storage, trade.offer_id);
-    if offer.is_err() {
-        return Err(StdError::generic_err("Offer not found"));
-    }
-
-    //Result
-    Ok(TradeInfo {
-        trade,
-        offer: offer.unwrap(),
-    })
+pub fn load_trades(deps: Deps, maker: Addr) -> StdResult<Vec<TradeState>> {
+    let trades = query_all_trades(deps.storage, maker.clone()).unwrap_or(vec![]);
+    let mut trades_states: Vec<TradeState> = vec![];
+    trades.iter().for_each(|t| {
+        let trade_result: StdResult<TradeState> =
+            deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: t.to_string(),
+                msg: to_binary(&TradeQueryMsg::State {}).unwrap(),
+            }));
+        let trade_state = trade_result.unwrap();
+        trades_states.push(trade_state)
+    });
+    Ok(trades_states)
 }
