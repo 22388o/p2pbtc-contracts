@@ -125,11 +125,11 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::State {} => to_binary(&query_config(deps)?),
+        QueryMsg::State {} => to_binary(&query_state(deps)?),
     }
 }
 
-fn query_config(deps: Deps) -> StdResult<State> {
+fn query_state(deps: Deps) -> StdResult<State> {
     let state = state_read(deps.storage).load()?;
     Ok(state)
 }

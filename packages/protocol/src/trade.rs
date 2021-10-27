@@ -1,3 +1,4 @@
+use crate::offer::Offer;
 use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

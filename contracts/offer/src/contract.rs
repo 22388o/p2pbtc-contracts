@@ -3,13 +3,8 @@ use cosmwasm_std::{
     Env, MessageInfo, QueryRequest, Reply, ReplyOn, Response, StdError, StdResult, Storage, SubMsg,
     SubMsgExecutionResponse, Uint128, WasmMsg, WasmQuery,
 };
-
-use crate::errors::OfferError;
-use crate::state::{
-    config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    OFFERS_KEY, TRADES,
-};
 use cosmwasm_storage::{bucket, bucket_read};
+
 use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::factory_util::get_factory_config;
 use localterra_protocol::offer::{
@@ -17,6 +12,12 @@ use localterra_protocol::offer::{
 };
 use localterra_protocol::trade::{
     InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, State as TradeState,
+};
+
+use crate::errors::OfferError;
+use crate::state::{
+    config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
+    OFFERS_KEY, TRADES,
 };
 
 #[entry_point]
@@ -328,17 +329,31 @@ pub fn load_offer_by_id(storage: &dyn Storage, id: u64) -> StdResult<Offer> {
     Ok(offer)
 }
 
-pub fn load_trades(deps: Deps, maker: Addr) -> StdResult<Vec<TradeState>> {
+pub fn load_trades(deps: Deps, maker: Addr) -> StdResult<Vec<TradeInfo>> {
     let trades = query_all_trades(deps.storage, maker.clone()).unwrap_or(vec![]);
-    let mut trades_states: Vec<TradeState> = vec![];
+    let mut trades_infos: Vec<TradeInfo> = vec![];
     trades.iter().for_each(|t| {
-        let trade_result: StdResult<TradeState> =
-            deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        let trade_state: TradeState = deps
+            .querier
+            .query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: t.to_string(),
                 msg: to_binary(&TradeQueryMsg::State {}).unwrap(),
-            }));
-        let trade_state = trade_result.unwrap();
-        trades_states.push(trade_state)
+            }))
+            .unwrap();
+        let offer: Offer = deps
+            .querier
+            .query(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: trade_state.offer_contract.to_string(),
+                msg: to_binary(&QueryMsg::Offer {
+                    id: trade_state.offer_id,
+                })
+                .unwrap(),
+            }))
+            .unwrap();
+        trades_infos.push(TradeInfo {
+            trade: trade_state,
+            offer,
+        })
     });
-    Ok(trades_states)
+    Ok(trades_infos)
 }
