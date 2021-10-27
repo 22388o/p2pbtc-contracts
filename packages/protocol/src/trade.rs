@@ -26,6 +26,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
+    pub addr: Addr,
     pub factory_addr: Addr,
     pub recipient: Addr,
     pub sender: Addr,

@@ -76,6 +76,7 @@ pub fn instantiate(
 
     //Instantiate Trade state
     let mut state = State {
+        addr: env.contract.address.clone(),
         factory_addr: offers_cfg.factory_addr.clone(),
         recipient,
         sender,
