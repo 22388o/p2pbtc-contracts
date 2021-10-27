@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use crate::errors::OfferError;
 use crate::state::{
     config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    trades_storage, OFFERS_KEY,
+    OFFERS_KEY, TRADES,
 };
 use cosmwasm_storage::{bucket, bucket_read};
 use localterra_protocol::currencies::FiatCurrency;
@@ -60,7 +60,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Offers { fiat_currency } => to_binary(&load_offers(deps.storage, fiat_currency)?),
         QueryMsg::Offer { id } => to_binary(&load_offer_by_id(deps.storage, id)?),
-        QueryMsg::Trades { maker } => to_binary(&query_all_trades(deps.storage, maker)?),
+        QueryMsg::Trades { maker } => {
+            to_binary(&query_all_trades(deps.storage, Addr::unchecked(maker))?)
+        }
         QueryMsg::TradeInfo { maker, trade } => to_binary(&load_trade_info(deps, maker, trade)?),
     }
 }
@@ -103,9 +105,10 @@ fn trade_instance_reply(
 
     let offer = load_offer_by_id(deps.storage, trade_state.offer_id.clone()).unwrap();
 
-    trades_storage(deps.storage, offer.owner.to_string())
-        .save(trade_addr.as_bytes(), &"".to_string())
-        .unwrap();
+    let trades_store = TRADES.key(offer.owner.as_bytes());
+    let mut trades = trades_store.load(deps.storage).unwrap_or(vec![]);
+    trades.push(trade_addr.clone());
+    trades_store.save(deps.storage, &trades).unwrap();
 
     //trade_state, offer_id, trade_amount,owner
     let res = Response::new()
@@ -331,10 +334,10 @@ pub fn load_trade_info(deps: Deps, maker: String, trade: String) -> StdResult<Tr
 
     //TODO: add pagination
     //Load all trades by maker
-    let trades_by_maker = query_all_trades(deps.storage, maker.to_string());
+    let trades_by_maker = query_all_trades(deps.storage, maker.clone());
     let trade = match trades_by_maker {
         Ok(trades) => {
-            if trades.contains(&trade.clone().into_string()) {
+            if trades.contains(&trade) {
                 Some(trade.clone())
             } else {
                 None
