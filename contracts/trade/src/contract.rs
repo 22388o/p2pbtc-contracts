@@ -260,14 +260,8 @@ fn release(
     let mut final_balance: Vec<Coin> = Vec::new();
     let offer = get_offer(&deps.as_ref(), &state);
 
-    let factory_cfg: FactoryConfig = deps
-        .querier
-        .query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: state.factory_addr.to_string(),
-            msg: to_binary(&FactoryQuery::Config {}).unwrap(),
-        }))
-        .unwrap();
-
+    let factory_cfg: FactoryConfig =
+        get_factory_config(&deps.querier, state.factory_addr.to_string());
     let local_terra_fee: Vec<Coin> = deduct_localterra_fee(&balance, &mut final_balance);
     let fee_collector = factory_cfg.fee_collector_addr.clone();
     send_msgs.push(SubMsg::new(create_send_msg(
