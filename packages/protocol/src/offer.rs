@@ -17,7 +17,7 @@ pub struct OfferMsg {
     pub offer_type: OfferType,
     pub fiat_currency: FiatCurrency,
     pub min_amount: u64,
-    pub max_amount: u64,
+    pub max_amount: u64, // TODO change to Uint128
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
