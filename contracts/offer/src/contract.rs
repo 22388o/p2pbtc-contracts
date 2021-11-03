@@ -17,7 +17,7 @@ use localterra_protocol::trade::{
 use crate::errors::OfferError;
 use crate::state::{
     config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    OFFERS_KEY, TRADES,
+    OFFERS, OFFERS_KEY, TRADES,
 };
 
 #[entry_point]
@@ -148,7 +148,9 @@ pub fn create_offer(
         return Err(err);
     }
 
-    bucket(deps.storage, OFFERS_KEY).save(&offer_id.to_be_bytes(), &offer)?;
+    // bucket(deps.storage, OFFERS_KEY).save(&offer_id.to_be_bytes(), &offer)?;
+    OFFERS.save(deps.storage, &offer_id.to_be_bytes(), &offer)?;
+
     state_storage(deps.storage).save(&state)?;
 
     let res = Response::new()
@@ -167,11 +169,14 @@ pub fn activate_offer(
     info: MessageInfo,
     id: u64,
 ) -> Result<Response, OfferError> {
-    let mut offer = load_offer_by_id(deps.storage, id)?;
+    let mut offer = OFFERS
+        .may_load(deps.storage, &id.to_be_bytes())?
+        .ok_or(OfferError::InvalidReply {})?;
     return if offer.owner.eq(&info.sender) {
         if offer.state == OfferState::Paused {
             offer.state = OfferState::Active;
-            bucket(deps.storage, OFFERS_KEY).save(&offer.id.to_be_bytes(), &offer)?;
+            // bucket(deps.storage, OFFERS_KEY).save(&offer.id.to_be_bytes(), &offer)?;
+            OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
             let res = Response::new()
                 .add_attribute("action", "active_offer")
                 .add_attribute("id", offer.id.to_string())
@@ -197,11 +202,13 @@ pub fn pause_offer(
     info: MessageInfo,
     id: u64,
 ) -> Result<Response, OfferError> {
-    let mut offer = load_offer_by_id(deps.storage, id)?;
+    let mut offer = OFFERS
+        .may_load(deps.storage, &id.to_be_bytes())?
+        .ok_or(OfferError::InvalidReply {})?;
     return if offer.owner.eq(&info.sender) {
         if offer.state == OfferState::Active {
             offer.state = OfferState::Paused;
-            bucket(deps.storage, OFFERS_KEY).save(&offer.id.to_be_bytes(), &offer)?;
+            OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
             let res = Response::new()
                 .add_attribute("action", "pause_offer")
                 .add_attribute("id", offer.id.to_string())
@@ -228,7 +235,9 @@ pub fn update_offer(
     id: u64,
     msg: OfferMsg,
 ) -> Result<Response, OfferError> {
-    let mut offer = load_offer_by_id(deps.storage, id)?;
+    let mut offer = OFFERS
+        .may_load(deps.storage, &id.to_be_bytes())?
+        .ok_or(OfferError::InvalidReply {})?;
 
     if msg.min_amount >= msg.max_amount {
         let err = OfferError::Std(StdError::generic_err(
@@ -243,7 +252,7 @@ pub fn update_offer(
         offer.min_amount = Uint128::from(msg.min_amount);
         offer.max_amount = Uint128::from(msg.max_amount);
 
-        bucket(deps.storage, OFFERS_KEY).save(&offer.id.to_be_bytes(), &offer)?;
+        OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
         let res = Response::new()
             .add_attribute("action", "pause_offer")
             .add_attribute("id", offer.id.to_string())
@@ -266,7 +275,10 @@ fn create_trade(
     counterparty: String,
 ) -> Result<Response, OfferError> {
     let cfg = config_read(deps.storage).load().unwrap();
-    let offer = load_offer_by_id(deps.storage, offer_id).unwrap();
+    // let offer = load_offer_by_id(deps.storage, offer_id).unwrap();
+    let offer = OFFERS
+        .may_load(deps.storage, &offer_id.to_be_bytes())?
+        .ok_or(OfferError::InvalidReply {})?; // TODO choose better error
 
     if info.sender.ne(&offer.owner) {
         return Err(OfferError::Unauthorized {
