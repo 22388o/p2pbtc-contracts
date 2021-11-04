@@ -177,27 +177,27 @@ pub fn activate_offer(
         .ok_or(OfferError::InvalidReply {})?;
 
     if !(offer.owner.eq(&info.sender)) {
-        Err(OfferError::Unauthorized {
+        return Err(OfferError::Unauthorized {
             owner: offer.owner,
             caller: info.sender,
-        })
-    } else {
-        match offer.state {
-            OfferState::Paused => {
-                offer.activate(deps.storage);
+        });
+    }
 
-                let res = Response::new()
-                    .add_attribute("action", "activate_offer")
-                    .add_attribute("id", offer.id.to_string())
-                    .add_attribute("owner", offer.owner.to_string());
+    match offer.state {
+        OfferState::Paused => {
+            offer.activate(deps.storage);
 
-                Ok(res)
-            }
-            OfferState::Active => Err(OfferError::InvalidStateChange {
-                from: offer.state,
-                to: OfferState::Active,
-            }),
+            let res = Response::new()
+                .add_attribute("action", "activate_offer")
+                .add_attribute("id", offer.id.to_string())
+                .add_attribute("owner", offer.owner.to_string());
+
+            Ok(res)
         }
+        OfferState::Active => Err(OfferError::InvalidStateChange {
+            from: offer.state,
+            to: OfferState::Active,
+        }),
     }
 }
 
@@ -212,27 +212,27 @@ pub fn pause_offer(
         .ok_or(OfferError::InvalidReply {})?;
 
     if !(offer.owner.eq(&info.sender)) {
-        Err(OfferError::Unauthorized {
+        return Err(OfferError::Unauthorized {
             owner: offer.owner,
             caller: info.sender,
-        })
-    } else {
-        match offer.state {
-            OfferState::Active => {
-                offer.pause(deps.storage);
+        });
+    }
 
-                let res = Response::new()
-                    .add_attribute("action", "pause_offer")
-                    .add_attribute("id", offer.id.to_string())
-                    .add_attribute("owner", offer.owner.to_string());
+    match offer.state {
+        OfferState::Active => {
+            offer.pause(deps.storage);
 
-                Ok(res)
-            }
-            OfferState::Paused => Err(OfferError::InvalidStateChange {
-                from: offer.state,
-                to: OfferState::Paused,
-            }),
+            let res = Response::new()
+                .add_attribute("action", "pause_offer")
+                .add_attribute("id", offer.id.to_string())
+                .add_attribute("owner", offer.owner.to_string());
+
+            Ok(res)
         }
+        OfferState::Paused => Err(OfferError::InvalidStateChange {
+            from: offer.state,
+            to: OfferState::Paused,
+        }),
     }
 }
 
