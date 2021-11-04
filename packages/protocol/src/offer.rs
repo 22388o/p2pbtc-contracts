@@ -1,7 +1,7 @@
 use crate::currencies::FiatCurrency;
 use crate::trade::State as TradeState;
 use cosmwasm_std::{Addr, Order, StdResult, Storage, Uint128};
-use cw_storage_plus::Map;
+use cw_storage_plus::{Bound, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
@@ -50,9 +50,20 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     Config {},
     State {},
-    Offers { fiat_currency: FiatCurrency },
-    Offer { id: u64 },
-    Trades { maker: String },
+    Offers {
+        fiat_currency: FiatCurrency,
+    },
+    OffersPage {
+        fiat_currency: FiatCurrency,
+        last_value: Vec<u8>,
+        limit: usize,
+    },
+    Offer {
+        id: u64,
+    },
+    Trades {
+        maker: String,
+    },
 }
 
 ///Data
@@ -106,6 +117,27 @@ impl Offer {
     ) -> StdResult<Vec<Offer>> {
         let result: Vec<Offer> = OFFERS
             .range(storage, None, None, Order::Ascending)
+            .flat_map(|item| item.and_then(|(_, offer)| Ok(offer)))
+            .filter(|offer| offer.fiat_currency == fiat_currency)
+            .collect();
+
+        Ok(result)
+    }
+
+    pub fn fetch(
+        storage: &dyn Storage,
+        fiat_currency: FiatCurrency,
+        last_value: Vec<u8>,
+        limit: usize,
+    ) -> StdResult<Vec<Offer>> {
+        let result: Vec<Offer> = OFFERS
+            .range(
+                storage,
+                Some(Bound::Exclusive(last_value)),
+                None,
+                Order::Ascending,
+            )
+            .take(limit)
             .flat_map(|item| item.and_then(|(_, offer)| Ok(offer)))
             .filter(|offer| offer.fiat_currency == fiat_currency)
             .collect();

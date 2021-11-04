@@ -62,6 +62,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Offers { fiat_currency } => {
             to_binary(&Offer::query_all_offers(deps.storage, fiat_currency)?)
         }
+        QueryMsg::OffersPage {
+            fiat_currency,
+            last_value,
+            limit,
+        } => to_binary(&Offer::fetch(
+            deps.storage,
+            fiat_currency,
+            last_value,
+            limit,
+        )?),
         QueryMsg::Offer { id } => to_binary(&load_offer_by_id(deps.storage, id)?),
         QueryMsg::Trades { maker } => to_binary(&load_trades(
             deps,
