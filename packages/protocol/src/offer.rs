@@ -2,7 +2,7 @@ use super::constants::OFFERS_KEY;
 use crate::currencies::FiatCurrency;
 use crate::errors::OfferError;
 use crate::trade::State as TradeState;
-use cosmwasm_std::{Addr, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::Map;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -150,6 +150,19 @@ impl OfferModel<'_> {
         &self.offer
         // self.save()
         //     ^^^^ move occurs because `*self` has type `OfferModel<'_>`, which does not implement the `Copy` trait
+    }
+
+    pub fn query_all_offers(
+        storage: &dyn Storage,
+        fiat_currency: FiatCurrency,
+    ) -> StdResult<Vec<Offer>> {
+        let result: Vec<Offer> = OFFERS
+            .range(storage, None, None, Order::Ascending)
+            .flat_map(|item| item.and_then(|(_, offer)| Ok(offer)))
+            .filter(|offer| offer.fiat_currency == fiat_currency)
+            .collect();
+
+        Ok(result)
     }
 }
 
