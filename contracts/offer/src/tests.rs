@@ -1,5 +1,5 @@
 #![cfg(test)]
-use crate::contract::{execute, instantiate, load_offer_by_id, load_offers, query};
+use crate::contract::{execute, instantiate, load_offer_by_id, query};
 use crate::errors::OfferError;
 use crate::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::mock_env;
@@ -133,7 +133,7 @@ fn pause_offer_test() {
     assert_eq!(res.messages.len(), 0);
 
     //Load all offers and get the created offer
-    let offers = load_offers(&deps.storage, FiatCurrency::BRL).unwrap();
+    let offers = Offer::query_all_offers(&deps.storage, FiatCurrency::BRL).unwrap();
     let offer = &offers[0];
     assert_eq!(offer.state, OfferState::Active);
 
@@ -187,7 +187,7 @@ fn activate_offer_test() {
     assert_eq!(res.messages.len(), 0);
 
     //Load all offers and get the created offer
-    let offers = load_offers(&deps.storage, FiatCurrency::BRL).unwrap();
+    let offers = Offer::query_all_offers(&deps.storage, FiatCurrency::BRL).unwrap();
     let offer = &offers[0];
     assert_eq!(offer.state, OfferState::Active);
 

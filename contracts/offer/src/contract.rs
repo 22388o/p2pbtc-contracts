@@ -17,8 +17,7 @@ use localterra_protocol::trade::{
 
 use crate::errors::OfferError;
 use crate::state::{
-    config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    OFFERS_KEY, TRADES,
+    config_read, config_storage, query_all_trades, state_read, state_storage, OFFERS_KEY, TRADES,
 };
 
 #[entry_point]
@@ -60,7 +59,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::State {} => to_binary(&query_state(deps)?),
-        QueryMsg::Offers { fiat_currency } => to_binary(&load_offers(deps.storage, fiat_currency)?),
+        QueryMsg::Offers { fiat_currency } => {
+            to_binary(&Offer::query_all_offers(deps.storage, fiat_currency)?)
+        }
         QueryMsg::Offer { id } => to_binary(&load_offer_by_id(deps.storage, id)?),
         QueryMsg::Trades { maker } => to_binary(&load_trades(
             deps,
@@ -332,11 +333,6 @@ fn query_config(deps: Deps) -> StdResult<Config> {
 fn query_state(deps: Deps) -> StdResult<State> {
     let state = state_read(deps.storage).load().unwrap();
     Ok(state)
-}
-
-pub fn load_offers(storage: &dyn Storage, fiat_currency: FiatCurrency) -> StdResult<Vec<Offer>> {
-    let offers = query_all_offers(storage, fiat_currency)?;
-    Ok(offers)
 }
 
 pub fn load_offer_by_id(storage: &dyn Storage, id: u64) -> StdResult<Offer> {
