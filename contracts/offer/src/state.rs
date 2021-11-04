@@ -1,15 +1,55 @@
-use cosmwasm_std::{Addr, Order, StdResult, Storage};
+use cosmwasm_std::{Addr, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton, Singleton,
 };
-use cw_storage_plus::Map;
+use cw_storage_plus::{Map, PrimaryKey};
 use localterra_protocol::currencies::FiatCurrency;
-use localterra_protocol::offer::{Config, Offer, State, OFFERS};
+use localterra_protocol::offer::{Config, Offer, OfferMsg, OfferState, State, OFFERS};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static STATE_KEY: &[u8] = b"state";
 pub static OFFERS_KEY: &[u8] = b"offers";
 pub const TRADES: Map<&[u8], Vec<Addr>> = Map::new("trades");
+
+pub struct OfferModel<'a> {
+    pub data: Offer,
+    pub storage: &'a mut dyn Storage,
+}
+
+impl OfferModel<'_> {
+    pub fn may_load<'a>(storage: &'a mut dyn Storage, id: &u64) -> OfferModel<'a> {
+        let offermodal = OfferModel {
+            data: OFFERS
+                .may_load(storage, &id.to_be_bytes())
+                .unwrap_or_default()
+                .unwrap(),
+            storage,
+        };
+        return offermodal;
+    }
+
+    pub fn save(&mut self) -> StdResult<()> {
+        OFFERS.save(self.storage, &self.data.id.to_be_bytes(), &self.data)
+    }
+
+    pub fn activate(&mut self) -> StdResult<()> {
+        self.data.state = OfferState::Active;
+        self.save()
+    }
+
+    pub fn pause(&mut self) -> StdResult<()> {
+        self.data.state = OfferState::Paused;
+        self.save()
+    }
+
+    pub fn update(&mut self, msg: OfferMsg) -> StdResult<()> {
+        self.data.offer_type = msg.offer_type;
+        self.data.fiat_currency = msg.fiat_currency;
+        self.data.min_amount = Uint128::from(msg.min_amount);
+        self.data.max_amount = Uint128::from(msg.max_amount);
+        self.save()
+    }
+}
 
 pub fn config_storage(storage: &mut dyn Storage) -> Singleton<Config> {
     singleton(storage, CONFIG_KEY)

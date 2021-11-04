@@ -77,30 +77,6 @@ pub struct Offer {
     pub state: OfferState,
 }
 
-impl Offer {
-    pub fn save(&self, storage: &mut dyn Storage) -> StdResult<()> {
-        OFFERS.save(storage, &self.id.to_be_bytes(), &self)
-    }
-
-    pub fn activate(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
-        self.state = OfferState::Active;
-        self.save(storage)
-    }
-
-    pub fn pause(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
-        self.state = OfferState::Paused;
-        self.save(storage)
-    }
-
-    pub fn update(&mut self, storage: &mut dyn Storage, msg: OfferMsg) -> StdResult<()> {
-        self.offer_type = msg.offer_type;
-        self.fiat_currency = msg.fiat_currency;
-        self.min_amount = Uint128::from(msg.min_amount);
-        self.max_amount = Uint128::from(msg.max_amount);
-        self.save(storage)
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TradeInfo {
     pub trade: TradeState,
