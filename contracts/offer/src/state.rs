@@ -4,12 +4,11 @@ use cosmwasm_storage::{
 };
 use cw_storage_plus::Map;
 use localterra_protocol::currencies::FiatCurrency;
-use localterra_protocol::offer::{Config, Offer, State};
+use localterra_protocol::offer::{Config, Offer, State, OFFERS};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static STATE_KEY: &[u8] = b"state";
 pub static OFFERS_KEY: &[u8] = b"offers";
-pub const OFFERS: Map<&[u8], Offer> = Map::new("offers");
 pub const TRADES: Map<&[u8], Vec<Addr>> = Map::new("trades");
 
 pub fn config_storage(storage: &mut dyn Storage) -> Singleton<Config> {

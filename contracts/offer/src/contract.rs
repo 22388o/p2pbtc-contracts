@@ -9,6 +9,7 @@ use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::factory_util::get_factory_config;
 use localterra_protocol::offer::{
     Config, ExecuteMsg, InstantiateMsg, Offer, OfferMsg, OfferState, QueryMsg, State, TradeInfo,
+    OFFERS,
 };
 use localterra_protocol::trade::{
     InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, State as TradeState,
@@ -17,7 +18,7 @@ use localterra_protocol::trade::{
 use crate::errors::OfferError;
 use crate::state::{
     config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    OFFERS, OFFERS_KEY, TRADES,
+    OFFERS_KEY, TRADES,
 };
 
 #[entry_point]
@@ -127,8 +128,17 @@ pub fn create_offer(
     info: MessageInfo,
     msg: OfferMsg,
 ) -> Result<Response, OfferError> {
-    let mut state = state_storage(deps.storage).load().unwrap();
+    if msg.min_amount >= msg.max_amount {
+        let err = OfferError::Std(StdError::generic_err(
+            "Min amount must be greater than Max amount.",
+        ));
+        return Err(err);
+    }
+
+    let mut state = state_storage(deps.storage).load()?;
+
     let offer_id = state.offers_count + 1;
+
     state.offers_count = offer_id;
 
     let offer = Offer {
@@ -141,15 +151,7 @@ pub fn create_offer(
         state: OfferState::Active,
     };
 
-    if msg.min_amount >= msg.max_amount {
-        let err = OfferError::Std(StdError::generic_err(
-            "Min amount must be greater than Max amount.",
-        ));
-        return Err(err);
-    }
-
-    // bucket(deps.storage, OFFERS_KEY).save(&offer_id.to_be_bytes(), &offer)?;
-    OFFERS.save(deps.storage, &offer_id.to_be_bytes(), &offer)?;
+    offer.save(deps.storage)?;
 
     state_storage(deps.storage).save(&state)?;
 
@@ -160,6 +162,7 @@ pub fn create_offer(
         .add_attribute("min_amount", offer.min_amount.to_string())
         .add_attribute("max_amount", offer.max_amount.to_string())
         .add_attribute("owner", offer.owner);
+
     Ok(res)
 }
 
@@ -172,28 +175,30 @@ pub fn activate_offer(
     let mut offer = OFFERS
         .may_load(deps.storage, &id.to_be_bytes())?
         .ok_or(OfferError::InvalidReply {})?;
-    return if offer.owner.eq(&info.sender) {
-        if offer.state == OfferState::Paused {
-            offer.state = OfferState::Active;
-            // bucket(deps.storage, OFFERS_KEY).save(&offer.id.to_be_bytes(), &offer)?;
-            OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
-            let res = Response::new()
-                .add_attribute("action", "active_offer")
-                .add_attribute("id", offer.id.to_string())
-                .add_attribute("owner", offer.owner.to_string());
-            Ok(res)
-        } else {
-            Err(OfferError::InvalidStateChange {
-                from: offer.state,
-                to: OfferState::Active,
-            })
-        }
-    } else {
+
+    if !(offer.owner.eq(&info.sender)) {
         Err(OfferError::Unauthorized {
             owner: offer.owner,
             caller: info.sender,
         })
-    };
+    } else {
+        match offer.state {
+            OfferState::Paused => {
+                offer.activate(deps.storage);
+
+                let res = Response::new()
+                    .add_attribute("action", "activate_offer")
+                    .add_attribute("id", offer.id.to_string())
+                    .add_attribute("owner", offer.owner.to_string());
+
+                Ok(res)
+            }
+            OfferState::Active => Err(OfferError::InvalidStateChange {
+                from: offer.state,
+                to: OfferState::Active,
+            }),
+        }
+    }
 }
 
 pub fn pause_offer(
@@ -205,27 +210,30 @@ pub fn pause_offer(
     let mut offer = OFFERS
         .may_load(deps.storage, &id.to_be_bytes())?
         .ok_or(OfferError::InvalidReply {})?;
-    return if offer.owner.eq(&info.sender) {
-        if offer.state == OfferState::Active {
-            offer.state = OfferState::Paused;
-            OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
-            let res = Response::new()
-                .add_attribute("action", "pause_offer")
-                .add_attribute("id", offer.id.to_string())
-                .add_attribute("owner", offer.owner.to_string());
-            Ok(res)
-        } else {
-            Err(OfferError::InvalidStateChange {
-                from: offer.state,
-                to: OfferState::Paused,
-            })
-        }
-    } else {
+
+    if !(offer.owner.eq(&info.sender)) {
         Err(OfferError::Unauthorized {
             owner: offer.owner,
             caller: info.sender,
         })
-    };
+    } else {
+        match offer.state {
+            OfferState::Active => {
+                offer.pause(deps.storage);
+
+                let res = Response::new()
+                    .add_attribute("action", "pause_offer")
+                    .add_attribute("id", offer.id.to_string())
+                    .add_attribute("owner", offer.owner.to_string());
+
+                Ok(res)
+            }
+            OfferState::Paused => Err(OfferError::InvalidStateChange {
+                from: offer.state,
+                to: OfferState::Paused,
+            }),
+        }
+    }
 }
 
 pub fn update_offer(
@@ -246,24 +254,21 @@ pub fn update_offer(
         return Err(err);
     }
 
-    return if offer.owner.eq(&info.sender) {
-        offer.offer_type = msg.offer_type;
-        offer.fiat_currency = msg.fiat_currency;
-        offer.min_amount = Uint128::from(msg.min_amount);
-        offer.max_amount = Uint128::from(msg.max_amount);
-
-        OFFERS.save(deps.storage, &offer.id.to_be_bytes(), &offer);
-        let res = Response::new()
-            .add_attribute("action", "pause_offer")
-            .add_attribute("id", offer.id.to_string())
-            .add_attribute("owner", offer.owner.to_string());
-        Ok(res)
-    } else {
+    if !(offer.owner.eq(&info.sender)) {
         Err(OfferError::Unauthorized {
             owner: offer.owner,
             caller: info.sender,
         })
-    };
+    } else {
+        offer.update(deps.storage, msg);
+
+        let res = Response::new()
+            .add_attribute("action", "pause_offer")
+            .add_attribute("id", offer.id.to_string())
+            .add_attribute("owner", offer.owner.to_string());
+
+        Ok(res)
+    }
 }
 
 fn create_trade(
