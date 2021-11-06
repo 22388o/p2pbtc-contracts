@@ -17,7 +17,6 @@ use localterra_protocol::trade::{
     InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, State as TradeState,
 };
 
-// use crate::errors::OfferError;
 use crate::state::{
     config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
     TRADES,
@@ -176,22 +175,14 @@ pub fn activate_offer(
 
     assert_ownership(info.sender, offer_model.offer.owner.clone())?;
 
-    match offer_model.offer.state {
-        OfferState::Paused => {
-            let offer = offer_model.activate();
+    let offer = offer_model.activate()?;
 
-            let res = Response::new()
-                .add_attribute("action", "activate_offer")
-                .add_attribute("id", offer_model.offer.id.to_string())
-                .add_attribute("owner", offer_model.offer.owner.to_string());
+    let res = Response::new()
+        .add_attribute("action", "activate_offer")
+        .add_attribute("id", offer.id.to_string())
+        .add_attribute("owner", offer.owner.to_string());
 
-            Ok(res)
-        }
-        OfferState::Active => Err(OfferError::InvalidStateChange {
-            from: offer_model.offer.state,
-            to: OfferState::Active,
-        }),
-    }
+    Ok(res)
 }
 
 pub fn pause_offer(
@@ -204,22 +195,14 @@ pub fn pause_offer(
 
     assert_ownership(info.sender, offer_model.offer.owner.clone())?;
 
-    match offer_model.offer.state {
-        OfferState::Active => {
-            let offer = offer_model.pause();
+    let offer = offer_model.pause()?;
 
-            let res = Response::new()
-                .add_attribute("action", "pause_offer")
-                .add_attribute("id", offer.id.to_string())
-                .add_attribute("owner", offer.owner.to_string());
+    let res = Response::new()
+        .add_attribute("action", "pause_offer")
+        .add_attribute("id", offer.id.to_string())
+        .add_attribute("owner", offer.owner.to_string());
 
-            Ok(res)
-        }
-        OfferState::Paused => Err(OfferError::InvalidStateChange {
-            from: offer_model.offer.state,
-            to: OfferState::Paused,
-        }),
-    }
+    Ok(res)
 }
 
 pub fn update_offer(

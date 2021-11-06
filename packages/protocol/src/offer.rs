@@ -1,5 +1,6 @@
 use super::constants::OFFERS_KEY;
 use crate::currencies::FiatCurrency;
+use crate::errors::OfferError;
 use crate::trade::State as TradeState;
 use cosmwasm_std::{Addr, StdResult, Storage, Uint128};
 use cw_storage_plus::Map;
@@ -112,16 +113,32 @@ impl OfferModel<'_> {
         return offer_model;
     }
 
-    pub fn activate(&mut self) -> &Offer {
-        self.offer.state = OfferState::Active;
-        OfferModel::store(self.storage, &self.offer);
-        &self.offer
+    pub fn activate(&mut self) -> Result<&Offer, OfferError> {
+        match self.offer.state {
+            OfferState::Paused => {
+                self.offer.state = OfferState::Active;
+                OfferModel::store(self.storage, &self.offer);
+                Ok(&self.offer)
+            }
+            OfferState::Active => Err(OfferError::InvalidStateChange {
+                from: self.offer.state.clone(),
+                to: OfferState::Active,
+            }),
+        }
     }
 
-    pub fn pause(&mut self) -> &Offer {
-        self.offer.state = OfferState::Paused;
-        OfferModel::store(self.storage, &self.offer);
-        &self.offer
+    pub fn pause(&mut self) -> Result<&Offer, OfferError> {
+        match self.offer.state {
+            OfferState::Active => {
+                self.offer.state = OfferState::Paused;
+                OfferModel::store(self.storage, &self.offer);
+                Ok(&self.offer)
+            }
+            OfferState::Paused => Err(OfferError::InvalidStateChange {
+                from: self.offer.state.clone(),
+                to: OfferState::Paused,
+            }),
+        }
     }
 
     pub fn update(&mut self, msg: OfferMsg) -> &Offer {
