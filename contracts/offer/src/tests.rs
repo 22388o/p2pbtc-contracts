@@ -1,6 +1,6 @@
 #![cfg(test)]
 use crate::contract::{execute, instantiate, load_offer_by_id, load_offers, query};
-use crate::errors::OfferError;
+// use crate::errors::OfferError;
 use crate::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::{
@@ -9,6 +9,7 @@ use cosmwasm_std::{
 };
 use cosmwasm_vm::testing::mock_info;
 use localterra_protocol::currencies::FiatCurrency;
+use localterra_protocol::errors::OfferError;
 use localterra_protocol::offer::{
     Config, ExecuteMsg, InstantiateMsg, Offer, OfferMsg, OfferState, OfferType, QueryMsg, State,
 };

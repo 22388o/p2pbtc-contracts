@@ -82,52 +82,57 @@ pub struct OfferModel<'a> {
     pub storage: &'a mut dyn Storage,
 }
 
-impl OfferModel {
+impl OfferModel<'_> {
     pub fn store(storage: &mut dyn Storage, offer: &Offer) -> StdResult<()> {
         OFFERS.save(storage, &offer.id.to_be_bytes(), &offer)
     }
 
-    pub fn fetch(storage: &mut dyn Storage, id: &u64) -> StdResult<Option<Offer>> {
-        OFFERS.may_load(storage, &id.to_be_bytes())
+    pub fn fetch(storage: &mut dyn Storage, id: &u64) -> Offer {
+        OFFERS
+            .may_load(storage, &id.to_be_bytes())
+            .unwrap_or_default()
+            .unwrap()
     }
 
     pub fn create(storage: &mut dyn Storage, offer: Offer) -> OfferModel {
-        Offer::store(storage, &offer);
+        OfferModel::store(storage, &offer);
         OfferModel { offer, storage }
     }
 
-    pub fn save(self) -> StdResult<Offer> {
-        Offer::store(storage, &self);
-        Ok(self.offer)
+    pub fn save<'a>(self) -> Offer {
+        OfferModel::store(self.storage, &self.offer);
+        self.offer
     }
 
     pub fn may_load<'a>(storage: &'a mut dyn Storage, id: &u64) -> OfferModel<'a> {
         let offer_model = OfferModel {
-            offer: Offer
-                .fetch(storage, &id.to_be_bytes())
-                .unwrap_or_default()
-                .unwrap(),
+            offer: OfferModel::fetch(storage, &id),
             storage,
         };
         return offer_model;
     }
 
-    pub fn activate(&mut self) -> StdResult<Offer> {
-        self.state = OfferState::Active;
-        self.save()
+    pub fn activate(&mut self) -> &Offer {
+        self.offer.state = OfferState::Active;
+        OfferModel::store(self.storage, &self.offer);
+        &self.offer
     }
 
-    pub fn pause(&mut self) -> StdResult<Offer> {
-        self.state = OfferState::Paused;
-        self.save()
+    pub fn pause(&mut self) -> &Offer {
+        self.offer.state = OfferState::Paused;
+        OfferModel::store(self.storage, &self.offer);
+        &self.offer
     }
 
-    pub fn update(&mut self) -> StdResult<Offer> {
-        self.offer_type = msg.offer_type;
-        self.fiat_currency = msg.fiat_currency;
-        self.min_amount = Uint128::from(msg.min_amount);
-        self.max_amount = Uint128::from(msg.max_amount);
-        self.save()
+    pub fn update(&mut self, msg: OfferMsg) -> &Offer {
+        self.offer.offer_type = msg.offer_type;
+        self.offer.fiat_currency = msg.fiat_currency;
+        self.offer.min_amount = Uint128::from(msg.min_amount);
+        self.offer.max_amount = Uint128::from(msg.max_amount);
+        OfferModel::store(self.storage, &self.offer);
+        &self.offer
+        // self.save()
+        //     ^^^^ move occurs because `*self` has type `OfferModel<'_>`, which does not implement the `Copy` trait
     }
 }
 
