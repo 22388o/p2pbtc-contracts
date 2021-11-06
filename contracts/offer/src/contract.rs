@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::{bucket, bucket_read};
 
+use localterra_protocol::constants::OFFERS_KEY;
 use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::factory_util::get_factory_config;
 use localterra_protocol::offer::{
@@ -18,7 +19,7 @@ use localterra_protocol::trade::{
 use crate::errors::OfferError;
 use crate::state::{
     config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    OFFERS_KEY, TRADES,
+    TRADES,
 };
 
 #[entry_point]
@@ -343,7 +344,7 @@ pub fn load_offers(storage: &dyn Storage, fiat_currency: FiatCurrency) -> StdRes
 }
 
 pub fn load_offer_by_id(storage: &dyn Storage, id: u64) -> StdResult<Offer> {
-    let offer: Offer = bucket_read(storage, OFFERS_KEY)
+    let offer: Offer = bucket_read(storage, b"offers")
         .load(&id.to_be_bytes())
         .unwrap();
     Ok(offer)
