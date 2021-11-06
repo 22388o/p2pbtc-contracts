@@ -9,8 +9,8 @@ use localterra_protocol::constants::OFFERS_KEY;
 use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::factory_util::get_factory_config;
 use localterra_protocol::offer::{
-    Config, ExecuteMsg, InstantiateMsg, Offer, OfferMsg, OfferState, QueryMsg, State, TradeInfo,
-    OFFERS,
+    Config, ExecuteMsg, InstantiateMsg, Offer, OfferModel, OfferMsg, OfferState, QueryMsg, State,
+    TradeInfo,
 };
 use localterra_protocol::trade::{
     InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, State as TradeState,
@@ -142,17 +142,20 @@ pub fn create_offer(
 
     state.offers_count = offer_id;
 
-    let offer = Offer {
-        id: offer_id,
-        owner: info.sender.clone(),
-        offer_type: msg.offer_type,
-        fiat_currency: msg.fiat_currency.clone(),
-        min_amount: Uint128::from(msg.min_amount),
-        max_amount: Uint128::from(msg.max_amount),
-        state: OfferState::Active,
+    let offer_model = OfferModel {
+        offer: Offer {
+            id: offer_id,
+            owner: info.sender.clone(),
+            offer_type: msg.offer_type,
+            fiat_currency: msg.fiat_currency.clone(),
+            min_amount: Uint128::from(msg.min_amount),
+            max_amount: Uint128::from(msg.max_amount),
+            state: OfferState::Active,
+        },
+        storage: deps.storage,
     };
 
-    offer.save(deps.storage)?;
+    let offer = offer_model.save()?;
 
     state_storage(deps.storage).save(&state)?;
 

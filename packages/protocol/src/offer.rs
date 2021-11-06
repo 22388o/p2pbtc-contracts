@@ -77,27 +77,57 @@ pub struct Offer {
     pub state: OfferState,
 }
 
-impl Offer {
-    pub fn save(&self, storage: &mut dyn Storage) -> StdResult<()> {
-        OFFERS.save(storage, &self.id.to_be_bytes(), &self)
+pub struct OfferModel<'a> {
+    pub offer: Offer,
+    pub storage: &'a mut dyn Storage,
+}
+
+impl OfferModel {
+    pub fn store(storage: &mut dyn Storage, offer: &Offer) -> StdResult<()> {
+        OFFERS.save(storage, &offer.id.to_be_bytes(), &offer)
     }
 
-    pub fn activate(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
+    pub fn fetch(storage: &mut dyn Storage, id: &u64) -> StdResult<Option<Offer>> {
+        OFFERS.may_load(storage, &id.to_be_bytes())
+    }
+
+    pub fn create(storage: &mut dyn Storage, offer: Offer) -> OfferModel {
+        Offer::store(storage, &offer);
+        OfferModel { offer, storage }
+    }
+
+    pub fn save(self) -> StdResult<Offer> {
+        Offer::store(storage, &self);
+        Ok(self.offer)
+    }
+
+    pub fn may_load<'a>(storage: &'a mut dyn Storage, id: &u64) -> OfferModel<'a> {
+        let offer_model = OfferModel {
+            offer: Offer
+                .fetch(storage, &id.to_be_bytes())
+                .unwrap_or_default()
+                .unwrap(),
+            storage,
+        };
+        return offer_model;
+    }
+
+    pub fn activate(&mut self) -> StdResult<Offer> {
         self.state = OfferState::Active;
-        self.save(storage)
+        self.save()
     }
 
-    pub fn pause(&mut self, storage: &mut dyn Storage) -> StdResult<()> {
+    pub fn pause(&mut self) -> StdResult<Offer> {
         self.state = OfferState::Paused;
-        self.save(storage)
+        self.save()
     }
 
-    pub fn update(&mut self, storage: &mut dyn Storage, msg: OfferMsg) -> StdResult<()> {
+    pub fn update(&mut self) -> StdResult<Offer> {
         self.offer_type = msg.offer_type;
         self.fiat_currency = msg.fiat_currency;
         self.min_amount = Uint128::from(msg.min_amount);
         self.max_amount = Uint128::from(msg.max_amount);
-        self.save(storage)
+        self.save()
     }
 }
 
