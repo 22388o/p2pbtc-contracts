@@ -19,8 +19,8 @@ pub struct InstantiateMsg {}
 pub struct OfferMsg {
     pub offer_type: OfferType,
     pub fiat_currency: FiatCurrency,
-    pub min_amount: u64,
-    pub max_amount: u64, // TODO change to Uint128
+    pub min_amount: Uint128,
+    pub max_amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -99,7 +99,7 @@ impl OfferModel<'_> {
         OFFERS.save(storage, &offer.id.to_be_bytes(), &offer)
     }
 
-    pub fn fetch(storage: &mut dyn Storage, id: &u64) -> Offer {
+    pub fn fromStore(storage: &mut dyn Storage, id: &u64) -> Offer {
         OFFERS
             .may_load(storage, &id.to_be_bytes())
             .unwrap_or_default()
@@ -118,7 +118,7 @@ impl OfferModel<'_> {
 
     pub fn may_load<'a>(storage: &'a mut dyn Storage, id: &u64) -> OfferModel<'a> {
         let offer_model = OfferModel {
-            offer: OfferModel::fetch(storage, &id),
+            offer: OfferModel::fromStore(storage, &id),
             storage,
         };
         return offer_model;
@@ -155,8 +155,8 @@ impl OfferModel<'_> {
     pub fn update(&mut self, msg: OfferMsg) -> &Offer {
         self.offer.offer_type = msg.offer_type;
         self.offer.fiat_currency = msg.fiat_currency;
-        self.offer.min_amount = Uint128::from(msg.min_amount);
-        self.offer.max_amount = Uint128::from(msg.max_amount);
+        self.offer.min_amount = msg.min_amount;
+        self.offer.max_amount = msg.max_amount;
         OfferModel::store(self.storage, &self.offer);
         &self.offer
         // self.save()

@@ -18,8 +18,7 @@ use localterra_protocol::trade::{
 };
 
 use crate::state::{
-    config_read, config_storage, query_all_offers, query_all_trades, state_read, state_storage,
-    TRADES,
+    config_read, config_storage, query_all_trades, state_read, state_storage, TRADES,
 };
 use localterra_protocol::errors::OfferError;
 
@@ -63,13 +62,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Offers { fiat_currency } => {
-            to_binary(&Offer::query_all_offers(deps.storage, fiat_currency)?)
+            to_binary(&OfferModel::query_all_offers(deps.storage, fiat_currency)?)
         }
         QueryMsg::OffersPage {
             fiat_currency,
             last_value,
             limit,
-        } => to_binary(&Offer::fetch(
+        } => to_binary(&OfferModel::fetch(
             deps.storage,
             fiat_currency,
             last_value,
@@ -157,8 +156,8 @@ pub fn create_offer(
             owner: info.sender.clone(),
             offer_type: msg.offer_type,
             fiat_currency: msg.fiat_currency.clone(),
-            min_amount: Uint128::from(msg.min_amount),
-            max_amount: Uint128::from(msg.max_amount),
+            min_amount: msg.min_amount,
+            max_amount: msg.max_amount,
             state: OfferState::Active,
         },
     )
@@ -250,7 +249,7 @@ fn create_trade(
 ) -> Result<Response, OfferError> {
     let cfg = config_read(deps.storage).load().unwrap();
     // let offer = load_offer_by_id(deps.storage, offer_id).unwrap();
-    let offer = OfferModel::fetch(deps.storage, &offer_id);
+    let offer = OfferModel::fromStore(deps.storage, &offer_id);
     //     .ok_or(OfferError::InvalidReply {})?; // TODO choose better error
 
     //TODO: Discuss this with the team.
