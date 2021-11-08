@@ -1,38 +1,16 @@
-use cosmwasm_std::{Addr, StdResult, Storage, Uint128};
-use cosmwasm_storage::{bucket, bucket_read};
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::ops::Div;
-
-pub static SCORE_RULES_KEY: &[u8] = b"score_rules";
-pub static SCORES_KEY: &[u8] = b"scores";
-
-pub fn score_rules_storage(storage: &mut dyn Storage) -> Singleton<ScoreRules> {
-    singleton(storage, SCORE_RULES_KEY)
-}
-
-pub fn score_rules_read(storage: &dyn Storage) -> ReadonlySingleton<ScoreRules> {
-    singleton_read(storage, SCORE_RULES_KEY)
-}
+use cosmwasm_std::Addr;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ScoreRules {
-    pub trade_completed_with_like_weight: u128,
-    pub trade_completed_with_dislike_weight: u128,
-    pub trade_completed_weight: u128,
-    pub trade_refunded_weight: u128,
-    pub trade_refunded_with_dislike_weight: u128,
+pub struct Config {
+    pub factory_addr: Addr,
+    pub completed_with_like_weight: u128,
+    pub completed_with_dislike_weight: u128,
+    pub completed_weight: u128,
+    pub refunded_weight: u128,
+    pub refunded_with_dislike_weight: u128,
     pub closed_dispute_against_weight: u128,
 }
 
-fn score_read(storage: &dyn Storage, maker_addr: Addr) -> StdResult<Score> {
-    bucket_read(storage, SCORES_KEY).load(&maker_addr.as_bytes())
-}
-
-fn score_storage(storage: &mut dyn Storage, maker_addr: Addr, score: &Score) -> StdResult<()> {
-    bucket(storage, SCORES_KEY).save(&maker_addr.as_bytes(), score)
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Score {
