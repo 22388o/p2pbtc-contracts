@@ -1,4 +1,5 @@
 use cosmwasm_std::Addr;
+use std::ops::Add;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
@@ -10,7 +11,6 @@ pub struct Config {
     pub refunded_with_dislike_weight: u128,
     pub closed_dispute_against_weight: u128,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Score {

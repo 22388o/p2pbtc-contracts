@@ -7,7 +7,7 @@ use cosmwasm_std::{
     WasmQuery,
 };
 
-use localterra_protocol::factory::{Config as FactoryConfig};
+use localterra_protocol::factory::Config as FactoryConfig;
 use localterra_protocol::factory_util::get_factory_config;
 use localterra_protocol::offer::{
     Config as OfferConfig, Offer, OfferType, QueryMsg as OfferQueryMsg,
@@ -159,7 +159,7 @@ fn fund_escrow(
         return Err(TradeError::Expired {
             current_height: env.block.height,
             expire_height: state.expire_height,
-        })
+        });
     }
     //TODO: Convert to UST if trade is for any other stablecoin or Luna,
     // skip conversion entirely if fee was paid in $LOCAL.

@@ -1,9 +1,9 @@
 #[cfg(test)]
 use super::*;
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{coins, from_binary};
 use crate::contract::{execute, instantiate, query};
 use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+use cosmwasm_std::{coins, from_binary};
 
 #[test]
 fn proper_initialization() {

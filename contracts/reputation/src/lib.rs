@@ -1,7 +1,7 @@
 pub mod contract;
 mod error;
 pub mod msg;
-mod tests;
 mod state;
+mod tests;
 
 pub use crate::error::ContractError;
