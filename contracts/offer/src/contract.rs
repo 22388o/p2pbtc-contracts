@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Binary, ContractResult, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Order, QueryRequest, Reply, ReplyOn, Response, StdResult, Storage, SubMsg,
-    SubMsgExecutionResponse, WasmMsg, WasmQuery,
+    SubMsgExecutionResponse, WasmMsg, WasmQuery, 
 };
 use cw_storage_plus::Bound;
 
@@ -175,7 +175,7 @@ fn trade_instance_reply(
 
 pub fn create_offer(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: OfferMsg,
 ) -> Result<Response, OfferError> {
@@ -197,7 +197,7 @@ pub fn create_offer(
             min_amount: msg.min_amount,
             max_amount: msg.max_amount,
             state: OfferState::Active,
-            timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+            timestamp: env.block.time.seconds(),
         },
     )
     .offer;
@@ -301,7 +301,7 @@ fn create_trade(
             ust_amount: ust_amount.clone(),
             counterparty: counterparty.clone(),
             offers_addr: env.contract.address.to_string(),
-            timestamp: SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()
+            timestamp: env.block.time.seconds(),
         })
         .unwrap(),
         funds: info.funds,
