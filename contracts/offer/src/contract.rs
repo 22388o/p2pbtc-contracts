@@ -50,7 +50,8 @@ pub fn execute(
             offer_id,
             ust_amount,
             counterparty,
-        } => create_trade(deps, env, info, offer_id, ust_amount, counterparty),
+            taker_contact,
+        } => create_trade(deps, env, info, offer_id, ust_amount, counterparty, taker_contact),
     }
 }
 
@@ -192,6 +193,7 @@ pub fn create_offer(
         Offer {
             id: offer_id,
             owner: info.sender.clone(),
+            maker_contact: msg.maker_contact,
             offer_type: msg.offer_type,
             fiat_currency: msg.fiat_currency.clone(),
             min_amount: msg.min_amount,
@@ -285,6 +287,7 @@ fn create_trade(
     offer_id: u64,
     ust_amount: String,
     counterparty: String,
+    taker_contact: String,
 ) -> Result<Response, OfferError> {
     let cfg = config_read(deps.storage).load().unwrap();
     // let offer = load_offer_by_id(deps.storage, offer_id).unwrap();
@@ -300,6 +303,7 @@ fn create_trade(
             offer_id,
             ust_amount: ust_amount.clone(),
             counterparty: counterparty.clone(),
+            taker_contact,
             offers_addr: env.contract.address.to_string(),
             timestamp: env.block.time.seconds(),
         })
