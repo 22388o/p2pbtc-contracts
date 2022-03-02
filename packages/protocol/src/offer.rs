@@ -92,7 +92,7 @@ pub enum ExecuteMsg {
     NewTrade {
         offer_id: u64,
         ust_amount: String,
-        counterparty: String, // TODO should be Addr
+        taker: String, // TODO should be Addr
         taker_contact: String,
         arbitrator: String, // TODO should be Addr
     },
@@ -101,8 +101,8 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TradesIndex {
-    Sender,
-    Recipient,
+    Seller,
+    Buyer,
     ArbitratorState,
 }
 
