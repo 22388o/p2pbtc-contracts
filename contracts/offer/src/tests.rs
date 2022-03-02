@@ -12,7 +12,7 @@ use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::errors::OfferError;
 use localterra_protocol::offer::{
     Config, ExecuteMsg, InstantiateMsg, Offer, OfferModel, OfferMsg, OfferState, OfferType,
-    QueryMsg, State, TradesIndex
+    QueryMsg, State, TradesIndex,
 };
 use localterra_protocol::trade::InstantiateMsg as TradeInstantiateMsg;
 
@@ -52,6 +52,7 @@ fn create_offer(
     let msg = ExecuteMsg::Create {
         offer: OfferMsg {
             offer_type,
+            maker_contact: "LunaQueen".to_string(),
             fiat_currency,
             min_amount: Uint128::from(1u128),
             max_amount: Uint128::from(2u128),
@@ -104,18 +105,18 @@ fn create_offer_test() {
     let mut created_offer = Offer {
         id: 1,
         owner: factory,
+        maker_contact: "LunaQueen".to_string(),
         offer_type: OfferType::Buy,
         fiat_currency: FiatCurrency::BRL,
         min_amount: Uint128::new(1),
         max_amount: Uint128::new(2),
         state: OfferState::Active,
-        timestamp: 1641329895
+        timestamp: 1641329895,
     };
     let queried_offer: Offer =
         from_binary(&query(deps.as_ref(), env.clone(), query_order_by_id).unwrap()).unwrap();
 
     created_offer.timestamp = queried_offer.timestamp; // Or assert_eq will fail
-    
     assert_eq!(queried_offer, created_offer);
 }
 
@@ -263,6 +264,7 @@ fn update_offer_test() {
     //Prepare Update message
     let offer_msg = OfferMsg {
         offer_type: OfferType::Sell,
+        maker_contact: "LunaQueen".to_string(),
         fiat_currency: FiatCurrency::COP,
         min_amount: Uint128::from(1000000u128),
         max_amount: Uint128::from(5000000u128),
@@ -304,8 +306,10 @@ fn instantiate_trade() {
     //Send Message to Create Trade
     let new_trade_msg = ExecuteMsg::NewTrade {
         offer_id: 1,
+        arbitrator: "arbitrator".to_string(),
+        taker_contact: "USTKing".to_string(),
         ust_amount: trade_amount.clone().to_string(),
-        counterparty: "taker".to_string(),
+        taker: "taker".to_string(),
     };
     let res = execute(deps.as_mut(), env.clone(), info.clone(), new_trade_msg);
     assert!(res.is_ok());
@@ -313,11 +317,12 @@ fn instantiate_trade() {
 
     let msg = to_binary(&TradeInstantiateMsg {
         offer_id: 1,
+        arbitrator: "arbitrator".to_string(),
+        taker_contact: "USTKing".to_string(),
         ust_amount: trade_amount.clone().to_string(),
-        counterparty: "taker".to_string(),
+        taker: "taker".to_string(),
         offers_addr: "offers".to_string(),
-        timestamp: 1641329895
-
+        timestamp: 1641329895,
     })
     .unwrap();
     let from_binary_msg: TradeInstantiateMsg = from_binary(&msg).unwrap();
@@ -346,10 +351,11 @@ fn instantiate_trade() {
             deps.as_ref(),
             mock_env(),
             QueryMsg::TradesQuery {
-                trader: Addr::unchecked("maker"),
-                index: TradesIndex::Recipient,
+                user: Addr::unchecked("maker"),
+                state: None,
+                index: TradesIndex::Buyer,
                 last_value: None,
-                limit: 10
+                limit: 10,
             },
         )
         .unwrap(),

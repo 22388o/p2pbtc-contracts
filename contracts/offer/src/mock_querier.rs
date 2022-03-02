@@ -13,7 +13,7 @@ use localterra_protocol::currencies::FiatCurrency;
 use localterra_protocol::factory::Config as FactoryConfig;
 use localterra_protocol::governance::Config as GovConfig;
 use localterra_protocol::offer::{Config as OfferConfig, Offer, OfferState, OfferType, TradeInfo};
-use localterra_protocol::trade::{State as TradeState, TradeState as TradeTradeState};
+use localterra_protocol::trade::{TradeData as TradeState, TradeState as TradeTradeState};
 use std::collections::HashMap;
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 use terraswap::asset::{AssetInfo, PairInfo};
@@ -232,12 +232,13 @@ impl WasmMockQuerier {
                     let offer = self.offer.clone().unwrap_or(Offer {
                         id,
                         owner: Addr::unchecked("offer-owner"),
+                        maker_contact: "LunaQueen".to_string(),
                         offer_type: OfferType::Buy,
                         fiat_currency: FiatCurrency::COP,
                         min_amount: Uint128::new(1_000_000u128),
                         max_amount: Uint128::new(500_000_000u128),
                         state: OfferState::Active,
-                        timestamp: 1641329895
+                        timestamp: 1641329895,
                     });
                     SystemResult::Ok(ContractResult::from(to_binary(&offer)))
                 }
@@ -273,8 +274,10 @@ impl WasmMockQuerier {
                         trade: TradeState {
                             addr: Addr::unchecked("trade"),
                             factory_addr: Addr::unchecked("factory"),
-                            recipient: Addr::unchecked("taker"),
-                            sender: Addr::unchecked(maker),
+                            buyer: Addr::unchecked("taker"),
+                            arbitrator: Addr::unchecked("arbitrator"),
+                            taker_contact: "USTKing".to_string(),
+                            seller: Addr::unchecked(maker),
                             offer_id: 1,
                             offer_contract: Addr::unchecked("offer"),
                             state: TradeTradeState::Closed,
@@ -284,15 +287,15 @@ impl WasmMockQuerier {
                         offer: Offer {
                             id: 1,
                             owner: Addr::unchecked("offer-owner"),
+                            maker_contact: "LunaQueen".to_string(),
                             offer_type: OfferType::Buy,
                             fiat_currency: FiatCurrency::COP,
                             min_amount: Uint128::new(1_000_000u128),
                             max_amount: Uint128::new(500_000_000u128),
                             state: OfferState::Active,
-                            timestamp: 1641329895
-
+                            timestamp: 1641329895,
                         },
-                        expired: false
+                        expired: false,
                     })))
                 }
             },
