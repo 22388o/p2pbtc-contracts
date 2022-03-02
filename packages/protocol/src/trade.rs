@@ -7,7 +7,7 @@ use std::fmt::{self};
 pub struct InstantiateMsg {
     pub offer_id: u64,
     pub ust_amount: String,
-    pub counterparty: String,
+    pub taker: String,
     pub offers_addr: String,
     pub arbitrator: String,
     pub taker_contact: String,
@@ -30,11 +30,11 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
+pub struct TradeData {
     pub addr: Addr,
     pub factory_addr: Addr,
-    pub recipient: Addr, // buyer
-    pub sender: Addr,    // seller
+    pub buyer: Addr,
+    pub seller: Addr,
     pub taker_contact: String,
     pub arbitrator: Addr,
     pub offer_contract: Addr,
