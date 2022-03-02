@@ -1,7 +1,7 @@
 use super::constants::OFFERS_KEY;
 use crate::currencies::FiatCurrency;
 use crate::errors::OfferError;
-use crate::trade::State as TradeState;
+use crate::trade::{TradeData, TradeState};
 use cosmwasm_std::{Addr, Deps, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
 use schemars::JsonSchema;
@@ -92,18 +92,18 @@ pub enum ExecuteMsg {
     NewTrade {
         offer_id: u64,
         ust_amount: String,
-        counterparty: String,
+        taker: String, // TODO should be Addr
         taker_contact: String,
-        arbitrator: String,
+        arbitrator: String, // TODO should be Addr
     },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum TradesIndex {
-    Sender,
-    Recipient,
-    Arbitrator,
+    Seller,
+    Buyer,
+    ArbitratorState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -141,6 +141,7 @@ pub enum QueryMsg {
     },
     TradesQuery {
         user: Addr,
+        state: Option<TradeState>,
         index: TradesIndex,
         last_value: Option<Addr>,
         limit: u32,
@@ -377,7 +378,7 @@ impl OfferModel<'_> {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TradeInfo {
-    pub trade: TradeState,
+    pub trade: TradeData,
     pub offer: Offer,
     pub expired: bool,
 }
@@ -388,6 +389,7 @@ pub struct TradeAddr {
     pub seller: Addr,
     pub buyer: Addr,
     pub arbitrator: Addr,
+    pub state: TradeState,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

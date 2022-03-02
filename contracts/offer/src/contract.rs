@@ -12,7 +12,7 @@ use localterra_protocol::offer::{
     State, TradeAddr, TradeInfo, TradesIndex,
 };
 use localterra_protocol::trade::{
-    InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, State as TradeState,
+    InstantiateMsg as TradeInstantiateMsg, QueryMsg as TradeQueryMsg, TradeData, TradeState,
 };
 
 use crate::state::{config_read, config_storage, state_read, state_storage, trades};
@@ -47,7 +47,7 @@ pub fn execute(
         ExecuteMsg::NewTrade {
             offer_id,
             ust_amount,
-            counterparty,
+            taker,
             taker_contact,
             arbitrator,
         } => create_trade(
@@ -56,7 +56,7 @@ pub fn execute(
             info,
             offer_id,
             ust_amount,
-            counterparty,
+            taker,
             taker_contact,
             arbitrator,
         ),
@@ -108,6 +108,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Offer { id } => to_binary(&load_offer_by_id(deps.storage, id)?),
         QueryMsg::TradesQuery {
             user,
+            state,
             index,
             last_value,
             limit,
@@ -115,6 +116,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             env,
             deps,
             deps.api.addr_validate(user.as_str()).unwrap(),
+            state,
             index,
             last_value,
             limit,
@@ -153,7 +155,7 @@ fn trade_instance_reply(
         .and_then(|addr| deps.api.addr_validate(addr.as_str()).ok())
         .unwrap();
 
-    let trade_state: TradeState = deps
+    let trade: TradeData = deps
         .querier
         .query_wasm_smart(trade_addr.to_string(), &TradeQueryMsg::State {})
         .unwrap();
@@ -161,24 +163,25 @@ fn trade_instance_reply(
     trades()
         .save(
             deps.storage,
-            trade_state.addr.as_str(),
+            trade.addr.as_str(),
             &TradeAddr {
                 trade: trade_addr.clone(),
-                seller: trade_state.sender.clone(),
-                buyer: trade_state.recipient.clone(),
-                arbitrator: trade_state.arbitrator.clone(),
+                seller: trade.seller.clone(),
+                buyer: trade.buyer.clone(),
+                arbitrator: trade.arbitrator.clone(),
+                state: trade.state.clone(),
             },
         )
         .unwrap();
 
-    let offer = load_offer_by_id(deps.storage, trade_state.offer_id.clone()).unwrap();
+    let offer = load_offer_by_id(deps.storage, trade.offer_id.clone()).unwrap();
 
     //trade_state, offer_id, trade_amount,owner
     let res = Response::new()
         .add_attribute("action", "create_trade_reply")
         .add_attribute("addr", trade_addr)
         .add_attribute("offer_id", offer.id.to_string())
-        .add_attribute("amount", trade_state.ust_amount)
+        .add_attribute("amount", trade.ust_amount)
         .add_attribute("owner", offer.owner);
     Ok(res)
 }
@@ -295,7 +298,7 @@ fn create_trade(
     info: MessageInfo,
     offer_id: u64,
     ust_amount: String,
-    counterparty: String,
+    taker: String,
     taker_contact: String,
     arbitrator: String,
 ) -> Result<Response, OfferError> {
@@ -312,7 +315,7 @@ fn create_trade(
         msg: to_binary(&TradeInstantiateMsg {
             offer_id,
             ust_amount: ust_amount.clone(),
-            counterparty: counterparty.clone(),
+            taker: taker.clone(),
             taker_contact,
             arbitrator,
             offers_addr: env.contract.address.to_string(),
@@ -335,7 +338,7 @@ fn create_trade(
         .add_attribute("id", offer.id.to_string())
         .add_attribute("owner", offer.owner.to_string())
         .add_attribute("ust_amount", ust_amount)
-        .add_attribute("counterparty", counterparty);
+        .add_attribute("taker", taker);
     Ok(res)
 }
 
@@ -361,6 +364,7 @@ pub fn query_trades(
     env: Env,
     deps: Deps,
     user: Addr,
+    state: Option<TradeState>,
     index: TradesIndex,
     last_value: Option<Addr>,
     limit: u32,
@@ -369,6 +373,7 @@ pub fn query_trades(
 
     let mut trades_infos: Vec<TradeInfo> = vec![];
 
+    // Pagination range (TODO pagination doesn't work with Addr as pk)
     let range_from = match last_value {
         Some(addr) => {
             let valid_addr = deps.api.addr_validate(addr.as_str()).unwrap();
@@ -377,21 +382,28 @@ pub fn query_trades(
         None => None,
     };
 
-    let multi_index = match index {
-        TradesIndex::Sender => trades().idx.sender,
-        TradesIndex::Recipient => trades().idx.recipient,
-        TradesIndex::Arbitrator => trades().idx.arbitrator,
+    // Select correct index for data lookup
+    // * The `state<TradeState>` filter only supported for `user == arbitrator` queries
+    let prefix = match index {
+        TradesIndex::Seller => trades().idx.sender.prefix(user),
+        TradesIndex::Buyer => trades().idx.recipient.prefix(user),
+        TradesIndex::ArbitratorState => match state {
+            Some(state) => trades()
+                .idx
+                .arbitrator_state
+                .prefix((user, state.to_string())),
+            None => trades().idx.arbitrator_state.sub_prefix(user),
+        },
     };
 
-    let trades: Vec<TradeAddr> = multi_index
-        .prefix(user)
+    let trade_results: Vec<TradeAddr> = prefix
         .range(deps.storage, range_from, None, Order::Ascending)
         .flat_map(|item| item.and_then(|(_, offer)| Ok(offer)))
         .take(limit as usize)
         .collect();
 
-    trades.iter().for_each(|t| {
-        let trade_state: TradeState = deps
+    trade_results.iter().for_each(|t| {
+        let trade_state: TradeData = deps
             .querier
             .query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: t.trade.to_string(),
