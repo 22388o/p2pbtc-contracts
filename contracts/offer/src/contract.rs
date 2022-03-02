@@ -47,7 +47,7 @@ pub fn execute(
         ExecuteMsg::NewTrade {
             offer_id,
             ust_amount,
-            counterparty,
+            taker,
             taker_contact,
             arbitrator,
         } => create_trade(
@@ -56,7 +56,7 @@ pub fn execute(
             info,
             offer_id,
             ust_amount,
-            counterparty,
+            taker,
             taker_contact,
             arbitrator,
         ),
@@ -298,7 +298,7 @@ fn create_trade(
     info: MessageInfo,
     offer_id: u64,
     ust_amount: String,
-    counterparty: String,
+    taker: String,
     taker_contact: String,
     arbitrator: String,
 ) -> Result<Response, OfferError> {
@@ -315,7 +315,7 @@ fn create_trade(
         msg: to_binary(&TradeInstantiateMsg {
             offer_id,
             ust_amount: ust_amount.clone(),
-            counterparty: counterparty.clone(),
+            taker: taker.clone(),
             taker_contact,
             arbitrator,
             offers_addr: env.contract.address.to_string(),
@@ -338,7 +338,7 @@ fn create_trade(
         .add_attribute("id", offer.id.to_string())
         .add_attribute("owner", offer.owner.to_string())
         .add_attribute("ust_amount", ust_amount)
-        .add_attribute("counterparty", counterparty);
+        .add_attribute("taker", taker);
     Ok(res)
 }
 
@@ -385,8 +385,8 @@ pub fn query_trades(
     // Select correct index for data lookup
     // * The `state<TradeState>` filter only supported for `user == arbitrator` queries
     let prefix = match index {
-        TradesIndex::Sender => trades().idx.sender.prefix(user),
-        TradesIndex::Recipient => trades().idx.recipient.prefix(user),
+        TradesIndex::Seller => trades().idx.sender.prefix(user),
+        TradesIndex::Buyer => trades().idx.recipient.prefix(user),
         TradesIndex::ArbitratorState => match state {
             Some(state) => trades()
                 .idx
